@@ -1,0 +1,23 @@
+version: 2
+
+# Monthly, with a 7-day cooldown so a freshly published release gets a week of exposure
+# before it is proposed.
+#
+# Not covered by Dependabot, bump by hand and keep in step with the other repos:
+#   - uv 0.13.7        (linting.yaml, `version:`)
+#   - pre-commit 4.7.0 (linting.yaml and the install hint in .pre-commit-config.yaml)
+#   - Node 22          (linting.yaml)
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: pre-commit
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7

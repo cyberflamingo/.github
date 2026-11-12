@@ -1,0 +1,6 @@
+# Default owner for everything.
+*            @cyberflamingo
+
+# Workflows, Dependabot, templates and this file: always owner-reviewed, even if the line above
+# is ever narrowed.
+/.github/    @cyberflamingo

@@ -1,0 +1,45 @@
+name: Linting
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read-only by default. A job that needs more asks for it by name, with a reason.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    name: Pre-commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # The hook blocks commits on main; this workflow also runs on pushes to main.
+      SKIP: no-commit-to-branch
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # prettier and markdownlint run on Node 22.
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+
+      # Keep the uv version in step with the other repos that use this workflow.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.7"
+          enable-cache: false
+
+      # The pre-commit version must match the install hint in .pre-commit-config.yaml.
+      - name: Run pre-commit
+        run: uvx --from pre-commit==4.7.0 pre-commit run --all-files --show-diff-on-failure
