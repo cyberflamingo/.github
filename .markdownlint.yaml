@@ -1,0 +1,17 @@
+# markdownlint-cli rules for the research notes and READMEs. Defaults, except where the content
+# makes a rule noise rather than signal.
+default: true
+
+# Line length: tables and Japanese terms make wrapping noisy. prettier owns layout.
+MD013: false
+
+# The same heading text under different parents is fine (e.g. "Sources" in every research note).
+MD024:
+  siblings_only: true
+
+# Table alignment: prettier owns it. The two tools measure the width of Japanese text differently,
+# so MD060 would flag every table prettier has just aligned.
+MD060: false
+
+# First line must be a H1: not for GitHub's PR and issue templates, which start at H2 by design.
+MD041: false

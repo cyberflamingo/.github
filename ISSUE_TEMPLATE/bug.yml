@@ -1,0 +1,20 @@
+name: Bug
+description: Something gives a wrong or surprising result
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste secrets, tokens or personal data. Describe the shape of the input instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps or command to reproduce
+    validations:
+      required: true

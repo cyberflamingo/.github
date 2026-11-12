@@ -1,0 +1,83 @@
+# Hooks run on pre-commit and pre-push. CI runs `pre-commit run --all-files`
+# (.github/workflows/linting.yaml), so a green local run predicts a green PR.
+#
+# `rev:` values are frozen to commit SHAs with the tag as a trailing comment; Dependabot's
+# `pre-commit` ecosystem proposes updates. Pre-commit is a convenience layer: anything that
+# must hold is also enforced in CI, because `--no-verify` exists.
+#
+# Install once per clone:  uvx --from pre-commit==4.7.0 pre-commit install
+minimum_pre_commit_version: "4.7.0"
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit, pre-push]
+
+repos:
+  # --- Secrets ---
+  # The gitleaks hook inspects staged changes only, so under `--all-files` in CI the whole-tree
+  # secret check comes from detect-secrets.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e # v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: 01886c8a910c64595c47f186ca1ffc0b77fa5458 # v1.5.0
+    hooks:
+      - id: detect-secrets
+        args:
+          - --baseline
+          - .secrets.baseline
+          # Frozen hook revisions are 40-hex commit SHAs, which the entropy detector would flag
+          # again on every Dependabot bump. Only `rev: <sha>` lines are skipped, not the file.
+          # detect-secrets parses YAML first, which drops the trailing comment and may add
+          # quotes, so the pattern accepts both forms (\x27 is a single quote).
+          - --exclude-lines
+          - '^\s*rev:\s+["\x27]?[0-9a-f]{40}["\x27]?(\s+#.*)?$'
+
+  # --- Shell ---
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: 745eface02aef23e168a8afb6b5737818efbea95 # v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  # --- Markdown ---
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: cbcdc463be5464e25e3e955a511599a67b9b987f # v0.50.0
+    hooks:
+      - id: markdownlint-fix
+
+  # The official pre-commit/mirrors-prettier stopped at v3.1.0 (only 4.0 alphas since), so this
+  # uses the maintained community mirror. Third-party hook repo: review on every bump.
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: 331f33fa4dfbcbca7c3da3620c137fde0faab273 # v3.9.10
+    hooks:
+      - id: prettier
+        types_or: [markdown]
+
+  # --- Workflows ---
+  - repo: https://github.com/rhysd/actionlint
+    rev: 914e7df21a07ef503a81201c76d2b11c789d3fca # v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: 06a39750ec31860bb44f2acf67182c40016cd1e7 # v1.32.0
+    hooks:
+      - id: zizmor
+
+  # --- File hygiene ---
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
+    hooks:
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-executables-have-shebangs
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      # CI sets SKIP=no-commit-to-branch because it also runs on pushes to main.
+      - id: no-commit-to-branch
+        args: [--branch, main]

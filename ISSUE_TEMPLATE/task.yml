@@ -1,0 +1,16 @@
+name: Task
+description: A piece of work to do, or a question to settle
+labels: [task]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be true when this is done?
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Links, related work, open questions. Keep secrets and personal data out of this form.
