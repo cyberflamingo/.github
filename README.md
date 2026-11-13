@@ -35,13 +35,14 @@ scripts/harden-repo.sh cyberflamingo/<repo>
 scripts/harden-repo.sh cyberflamingo/<repo> --checks "Test,Pre-commit" --allow 'astral-sh/setup-uv@*'
 ```
 
-| Option                | Use when                                                                                        |
-| --------------------- | ----------------------------------------------------------------------------------------------- |
-| `--checks "A,B"`      | The repo has CI. Use the job names a real run reports. A name no workflow reports blocks merge. |
-| `--allow PATTERN`     | A workflow uses an action from outside GitHub-owned and verified creators.                      |
-| `--no-actions-policy` | A workflow has unpinned `uses:`. Pin them first, then re-run without this flag.                 |
-| `--no-token-policy`   | A workflow relies on a write token. Give the job explicit `permissions`, then re-run.           |
-| `--no-rulesets`       | You do not want pull-request-only `main`.                                                       |
+| Option                | Use when                                                                                                                                                             |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--checks "A,B"`      | The repo has CI. Use the job names a real run reports. A name no workflow reports blocks merge. Repeat it on every re-run, or the ruleset loses its required checks. |
+| `--code-scanning`     | Turn on CodeQL. Public repos with a supported language only; a repo that already has it is left alone.                                                               |
+| `--allow PATTERN`     | A workflow uses an action from outside GitHub-owned and verified creators.                                                                                           |
+| `--no-actions-policy` | A workflow has unpinned `uses:`. Pin them first, then re-run without this flag.                                                                                      |
+| `--no-token-policy`   | A workflow relies on a write token. Give the job explicit `permissions`, then re-run.                                                                                |
+| `--no-rulesets`       | You do not want pull-request-only `main`.                                                                                                                            |
 
 Each line ends in `OK`, `VERIFIED`, `UNAVAILABLE` (the plan or visibility does not allow it) or
 `NO-EFFECT` (accepted but not applied). Needs `gh` (authenticated, admin on the repo) and `jq`.
@@ -53,8 +54,14 @@ reporting (public repos), allowed actions limited to GitHub-owned and verified c
 pinning required, a read-only default token that cannot approve pull requests, and three rulesets:
 `main: PR and checks`, `main: history integrity`, `tags: immutable releases`.
 
-On a private repository on GitHub Free, rulesets, secret scanning and auto-merge are refused. The
-script reports them as `UNAVAILABLE` or `NO-EFFECT` and the repository should record the gap.
+On a private repository on GitHub Free, rulesets, secret scanning, code scanning and auto-merge are
+refused. The script reports them as `UNAVAILABLE` or `NO-EFFECT` and the repository should record
+the gap. For private Python code, ruff's `S` rules and `zizmor` in pre-commit are the stand-in for
+CodeQL.
+
+`--code-scanning` uses CodeQL's default setup, so there is no workflow file to maintain. CodeQL
+covers Python, JavaScript/TypeScript, Ruby, Go, Java/Kotlin, C/C++, C#, Swift and Rust, not Shell,
+Nix, HTML or Markdown. Add the flag when creating a public repo with application code.
 
 ## Account settings the API cannot change
 

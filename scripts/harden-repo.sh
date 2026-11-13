@@ -4,11 +4,14 @@
 # Usage: harden-repo.sh OWNER/REPO [options]
 #   --checks "A,B"        Required status check names (job names as the workflow reports them).
 #                         Without it the PR ruleset requires no checks, because a name that no
-#                         workflow reports blocks every merge.
+#                         workflow reports blocks every merge. Repeat the same --checks on every re-run:
+#                         the ruleset is replaced, so leaving it out removes the required checks.
 #   --no-actions-policy   Skip the allowed-actions list and SHA pinning (repo has unpinned workflows).
 #   --no-token-policy     Skip the read-only default token (workflows rely on a write token).
 #   --no-rulesets         Skip the three rulesets.
 #   --allow PATTERN       Extra allowed action pattern, repeatable (for example 'astral-sh/setup-uv@*').
+#   --code-scanning       Turn on CodeQL default setup. Only for a public repo that has a language CodeQL
+#                         supports (otherwise UNAVAILABLE). A repo that already has it is left as it is.
 #
 # Needs gh (authenticated, admin on the repo) and jq. A control that GitHub refuses for the plan or the
 # repository visibility is reported as UNAVAILABLE, and one that is accepted but does not stick as
@@ -17,16 +20,17 @@
 set -euo pipefail
 
 repo=${1:-}
-[[ $repo == */* ]] || { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+[[ $repo == */* ]] || { sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 shift
 
-checks="" actions_policy=1 token_policy=1 rulesets=1 allow=()
+checks="" actions_policy=1 token_policy=1 rulesets=1 code_scanning=0 allow=()
 while (($#)); do
   case $1 in
     --checks) checks=$2; shift 2 ;;
     --no-actions-policy) actions_policy=0; shift ;;
     --no-token-policy) token_policy=0; shift ;;
     --no-rulesets) rulesets=0; shift ;;
+    --code-scanning) code_scanning=1; shift ;;
     --allow) allow+=("$2"); shift 2 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
@@ -105,6 +109,32 @@ if ((token_policy)); then
   try "token: read-only, no PR approval" gh api -X PUT "repos/$repo/actions/permissions/workflow" \
     -f default_workflow_permissions=read -F can_approve_pull_request_reviews=false
   expect "token" "repos/$repo/actions/permissions/workflow" '[.default_workflow_permissions,.can_approve_pull_request_reviews]|join(",")' "read,false"
+fi
+
+# --- Code scanning (CodeQL default setup) ---
+# GitHub only offers it on public repos on a free plan, and only for languages CodeQL supports. Default
+# setup picks the languages itself, so this checks that at least one exists and then lets GitHub choose.
+if ((code_scanning)); then
+  if [[ $private == true ]]; then
+    say "code scanning (CodeQL)" UNAVAILABLE "private repository: needs a paid plan"
+  else
+    # GitHub language name -> CodeQL language. Shell, Nix, HTML and Markdown have no CodeQL support.
+    codeql_langs=$(gh api "repos/$repo/languages" | jq -r 'keys | map(
+      {"Python":"python","JavaScript":"javascript-typescript","TypeScript":"javascript-typescript",
+       "Ruby":"ruby","Go":"go","Java":"java-kotlin","Kotlin":"java-kotlin","C":"c-cpp","C++":"c-cpp",
+       "C#":"csharp","Swift":"swift","Rust":"rust"}[.] // empty) | unique | join(",")')
+    current=$(gh api "repos/$repo/code-scanning/default-setup" --jq .state 2>/dev/null || echo "unreadable")
+    if [[ $current == configured ]]; then
+      # Do not re-send the setup: it could reset languages or the query suite the owner chose.
+      say "code scanning (CodeQL)" OK "already configured, left as it is"
+    elif [[ -z $codeql_langs ]]; then
+      say "code scanning (CodeQL)" UNAVAILABLE "no CodeQL-supported language in this repository"
+    else
+      try "code scanning (CodeQL: $codeql_langs)" gh api -X PATCH "repos/$repo/code-scanning/default-setup" \
+        -f state=configured -f query_suite=default
+      expect "code scanning" "repos/$repo/code-scanning/default-setup" .state configured
+    fi
+  fi
 fi
 
 # --- Rulesets (create or update by name) ---
